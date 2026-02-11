@@ -1,0 +1,1611 @@
+{
+  "name": "Tikets",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT IF(\n  EXISTS (\n    SELECT 1\n    FROM processed_files\n    WHERE\n      (\n        TRIM(identificador_unico) = TRIM('{{ JSON.parse($json[\"content\"])[\"identificador_unico\"] }}')\n      )\n      OR\n      (\n        TRIM(UPPER(empresa_emisora)) = TRIM(UPPER('{{ JSON.parse($json[\"content\"])[\"empresa_emisora\"] }}'))\n        AND\n        fecha = STR_TO_DATE('{{ JSON.parse($json[\"content\"])[\"fecha\"] }}', '%d-%m-%Y')\n        AND\n        precio_total = CAST('{{ JSON.parse($json[\"content\"])[\"precio_total\"] }}' AS DECIMAL(10,2))\n      )\n  ),\n  1,\n  0\n) AS es_duplicado;\n"
+      },
+      "name": "Check Duplicado",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 1,
+      "position": [
+        3776,
+        1728
+      ],
+      "id": "352dfb9c-13da-4d54-b873-e6ccc6013338",
+      "credentials": {
+        "mySql": {
+          "id": "R3MVI7F7fDUvjAlE",
+          "name": "MySQL account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ parseInt($items(\"Check Duplicado\")[0].json.es_duplicado, 10) }}",
+              "operation": "equal",
+              "value2": "={{ 0 }}"
+            }
+          ]
+        }
+      },
+      "name": "Es Nuevo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        4032,
+        1728
+      ],
+      "id": "f8ee881f-e9c8-4012-b41e-339ad18bc156",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$items(\"Nuevo Ticket/Factura Subido\")[0].json[\"id\"]}}",
+          "mode": ""
+        },
+        "options": {}
+      },
+      "name": "Descargar Ticket",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        336
+      ],
+      "id": "f213b77c-3eb5-421f-ab75-5c46a4f3266f",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "text": "Analiza la imagen adjunta, que puede ser un ticket de compra o una factura, y extrae la siguiente información únicamente si está disponible en el documento: \n\nSi hay varios IVA o varios IVA_importe guardalos todos ej: IVA: 21%,10%\n\nEl valor empresa_emisora guardalo en MAYUSCULAS\n\nprecio_total: El precio total pagado (incluyendo impuestos si aparecen).Guarda solo el valor decimal\n\niva_porcentaje: El porcentaje de IVA aplicado.\n\niva_importe: El importe exacto pagado de IVA. Solo guarda el valor decimal\n\nfecha: La fecha en la que se emitió el documento siempre en formato dd-mm-yyyy\n(el año siempre sera superior a 2025)\n\nempresa_emisora:\n- Si es un ticket, devuelve el nombre de la empresa o comercio que emitió el ticket.\n- Si es una factura, devuelve únicamente el nombre de la empresa que emite la factura (no la que la recibe).\n\nidentificador_unico:\n- Genera un identificador único concatenando los valores de empresa_emisora + fecha + precio_total **en ese orden**, eliminando **todos los espacios, comas, puntos, signos de moneda o cualquier carácter que no sea letra o número**.\n- Por ejemplo, si empresa_emisora = \"bonArea\", fecha = \"2025-06-07\", precio_total = \"8,04€\", el identificador_unico resultante debe ser exactamente: \"BONAREA20250607804\".\n\n\nDevuelve siempre la respuesta en formato json (clave valor, no código sin esto ``` y sin los saltos de línea) válido con las claves exactamente así:\n\n{\n  \"tipo_documento\": \"\", \n  \"precio_total\": \"\",\n  \"iva_porcentaje\": \"\",\n  \"iva_importe\": \"\",\n  \"fecha\": \"\",\n  \"empresa_emisora\": \"\",\n  \"identificador_unico\": \"\"\n}\n\nEn tipo_documento, indica si el documento es \"ticket\" o \"factura\".\n\nSi algún dato no está en el documento, deja el valor vacío (\"\").\n\nHazlo en todos los Idiomas, ya que los tickets no serán solo en español\n\nIMPORTANTE: Devuelve únicamente el JSON como una sola línea, sin ```json, sin bloques de código, sin saltos de línea ni explicaciones. Debe coincidir exactamente con el formato:\n{\"tipo_documento\":\"\", \"precio_total\":\"\", \"iva_porcentaje\":\"\", \"iva_importe\":\"\", \"fecha\":\"\", \"empresa_emisora\":\"\", \"identificador_unico\":\"\"}\n\nNota: Todos los valores de dinero (precio_total, iva_importe) deben aparecer únicamente como números.",
+        "inputType": "base64",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1312,
+        336
+      ],
+      "id": "426cf81c-6321-4646-9b76-b1ce852ad58c",
+      "name": "Analyze image",
+      "credentials": {
+        "openAiApi": {
+          "id": "s1VbbNCZrSLiKa71",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "update",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$node[\"Nuevo Ticket/Factura Subido\"].json[\"id\"]}}\n\n",
+          "mode": "id"
+        },
+        "updateFields": {
+          "parentId": "={{$json.folderId}}\n"
+        },
+        "options": {}
+      },
+      "id": "227fda0d-8ac7-4d4f-8488-f8be7a42c2dd",
+      "name": "Mover a Carpeta Mes",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        4544,
+        -176
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "list",
+        "useQueryString": true,
+        "queryString": "mimeType = 'application/vnd.google-apps.folder' and '1yq_eGu-TBZLc0qV3OPI5N_GCnzpPHHb5' in parents and trashed = false",
+        "options": {}
+      },
+      "id": "1c672b4e-8839-4fe1-ab4c-33e705697653",
+      "name": "Listar Carpetas Existentes",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        3056,
+        -160
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Obtenemos los items de cada nodo\nconst listarCarpetas = $items('Listar Carpetas Existentes').map(i => i.json);\nconst analizarImagen = $items('Analyze image').map(i => i.json);\n\n// Validamos que tengamos datos\nif (!listarCarpetas.length || !analizarImagen.length) {\n    return [{ json: { carpeta: null } }];\n}\n\n// Parseamos el contenido del análisis\nlet contenido;\ntry {\n    contenido = JSON.parse(analizarImagen[0].content);\n} catch (e) {\n    return [{ json: { carpeta: null } }];\n}\n\n// Convertimos fecha DD-MM-YYYY → YYYY-MM\nlet fechaFormateada = null;\nif (contenido.fecha && contenido.fecha.includes(\"-\")) {\n    const partes = contenido.fecha.split(\"-\");\n    if (partes.length === 3) {\n        const dia = partes[0];\n        const mes = partes[1].padStart(2, \"0\");\n        const anio = partes[2];\n        fechaFormateada = `${anio}-${mes}`; // <-- formato correcto para las carpetas\n    }\n}\n\nif (!fechaFormateada) return [{ json: { carpeta: null } }];\n\n// Buscamos la carpeta que coincida\nconst carpetaEncontrada = listarCarpetas.find(c => c.name === fechaFormateada);\n\n// Devolvemos siempre un array con un item\nreturn [{\n    json: { carpeta: carpetaEncontrada || null }\n}];\n"
+      },
+      "id": "7bba8d9d-775c-46f2-bbc1-41e18965cefa",
+      "name": "Check Carpeta Existente",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3408,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Intentar obtener el JSON devuelto por \"Analyze image\"\nlet content = $items(\"Analyze image\")[0].json.content || \"\";\n\n// Limpiar si viene con ```json ... ```\ncontent = content.replace(/^```json\\s*/, \"\").replace(/\\s*```$/, \"\").trim();\n\n// Parsear JSON\nlet data;\ntry {\n  data = JSON.parse(content);\n} catch (err) {\n  return [{ carpetaMes: \"SinFecha\" }];\n}\n\n// Obtener fecha\nconst fechaStr = data[\"fecha\"];\nif (!fechaStr) return [{ carpetaMes: \"SinFecha\" }];\n\n// Soportar diferentes formatos de fecha\nlet dia, mes, anio;\n\nif (fechaStr.includes(\".\")) {\n  // Formato DD.MM.YYYY\n  const partes = fechaStr.split(\".\");\n  if (partes.length !== 3) return [{ carpetaMes: \"SinFecha\" }];\n  dia = parseInt(partes[0], 10);\n  mes = parseInt(partes[1], 10);\n  anio = parseInt(partes[2], 10);\n} else if (fechaStr.includes(\"-\")) {\n  // Formato DD-MM-YYYY (cambio: europeo)\n  const partes = fechaStr.split(\"-\");\n  if (partes.length !== 3) return [{ carpetaMes: \"SinFecha\" }];\n  dia = parseInt(partes[0], 10);\n  mes = parseInt(partes[1], 10);\n  anio = parseInt(partes[2], 10);\n} else {\n  return [{ carpetaMes: \"SinFecha\" }];\n}\n\n// Validar números\nif (isNaN(dia) || isNaN(mes) || isNaN(anio)) {\n  return [{ carpetaMes: \"SinFecha\" }];\n}\n\n// Devolver carpetaMes en formato YYYY-MM\nreturn [{ carpetaMes: `${anio}-${String(mes).padStart(2, \"0\")}` }];\n"
+      },
+      "id": "3b27fe85-548e-4343-b746-b20d700ae75c",
+      "name": "Generar Carpeta Mes",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3856,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "content": " Check carpeta devuelve la carpeta que exsista o bien null, si devuelve carpeta, se mueve a ella, si devuelve null se coje el analize image i se crea la carpeta a partir de la fecha del content\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2368,
+        16
+      ],
+      "id": "ba039cc5-a5fd-485f-912e-84cd8ed69a45",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ab3631e3-a02d-4f39-8158-0ea9bdc73b8d",
+              "leftValue": "={{ $json.carpeta }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3600,
+        -160
+      ],
+      "id": "8e246361-4046-4b16-9c7a-5102a7f2ccf3",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "folder",
+        "name": "={{$json[\"carpetaMes\"]}}",
+        "options": {
+          "parents": [
+            "1yq_eGu-TBZLc0qV3OPI5N_GCnzpPHHb5"
+          ]
+        }
+      },
+      "id": "1f217d85-7a0a-4ff9-8c92-ce92f4a13d64",
+      "name": "Crear Carpeta Mes",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        4032,
+        96
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "folderId",
+              "value": "={{$json.id}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ec27e006-b1b7-4d70-9798-e77275a5597a",
+      "name": "Set FolderID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        4224,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "folderId",
+              "value": "={{$json.carpeta.id}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ad606e15-08be-4253-875d-56298afde8ec",
+      "name": "Set FolderID1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        4048,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "content": "LOS SET SIRVEN PARA AGRUPAR LA INFORMACIÓN EN UNA VARIABLE PARA ASI PODER HACER REFERENCIA A UNA VARIABLE, Y PODER SABER EL ID DE LA CARPETA NUEVA O A LA QUE HAY QUE MOVER."
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3312,
+        112
+      ],
+      "id": "976b1e21-5589-4968-ae7c-4d402c71f711",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "tipo_documento",
+              "value": "={{$json.tipo_documento}}"
+            },
+            {
+              "name": "precio_total",
+              "value": "={{$json.precio_total}}"
+            },
+            {
+              "name": "iva_porcentaje",
+              "value": "={{$json.iva_porcentaje}}"
+            },
+            {
+              "name": "iva_importe",
+              "value": "={{$json.iva_importe}}"
+            },
+            {
+              "name": "fecha",
+              "value": "={{$json.fecha}}"
+            },
+            {
+              "name": "empresa_emisora",
+              "value": "={{$json.empresa_emisora}}"
+            },
+            {
+              "name": "webContentLink",
+              "value": "={{$json.webContentLink}}"
+            },
+            {
+              "name": "thumbnailLink",
+              "value": "={{$json.thumbnailLink}}"
+            },
+            {
+              "name": "file_id",
+              "value": "={{ $json[\"google_drive_id\"] }}"
+            },
+            {
+              "name": "processed_at",
+              "value": "={{ new Date().toLocaleString(\"sv-SE\").replace(\"T\", \" \") }}\n\n\n\n"
+            },
+            {
+              "name": "identificador_unico",
+              "value": "={{ $json[\"identificador_unico\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9cddf19f-26cb-4a69-b0ce-28415f45c28d",
+      "name": "Set Datos para DB",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "table": "processed_files",
+        "columns": "file_id,processed_at,empresa_emisora,fecha,precio_total,tipo_documento,iva_porcentaje,iva_importe,identificador_unico,webContentLink,thumbnailLink",
+        "options": {}
+      },
+      "id": "34adc94f-9089-46eb-a2a6-b53fc9094836",
+      "name": "Guardar en Base de Datos",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        304
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "R3MVI7F7fDUvjAlE",
+          "name": "MySQL account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Items de Analyze image\nconst analizarImagen = $items('Analyze image').map(i => i.json);\nconst nuevoArchivo = $items('Nuevo Ticket/Factura Subido').map(i => i.json);\n\nif (!analizarImagen.length || !nuevoArchivo.length) {\n  return [{ json: {} }];\n}\n\n// Parseamos contenido JSON\nlet contenido;\ntry {\n  contenido = JSON.parse(analizarImagen[0].content);\n} catch(e) {\n  return [{ json: {} }];\n}\n\n// Construimos item final\nreturn [{\n  json: {\n    tipo_documento: contenido.tipo_documento || null,\n    precio_total: contenido.precio_total || null,\n    iva_porcentaje: contenido.iva_porcentaje || null,\n    iva_importe: contenido.iva_importe || null,\n    fecha: contenido.fecha || null,\n    empresa_emisora: contenido.empresa_emisora || null,\n    identificador_unico: contenido.identificador_unico || null,\n    google_drive_id: nuevoArchivo[0].id || null,\n    webContentLink: nuevoArchivo[0].webContentLink || null,\n    thumbnailLink: nuevoArchivo[0].thumbnailLink || null\n  }\n}];"
+      },
+      "id": "6377bb07-e84c-4857-be21-ec3814f22a79",
+      "name": "Procesar Imagen y Preparar Item1",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2048,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$node[\"Nuevo Ticket/Factura Subido\"].json[\"id\"]}}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "14vu3zEZa7tPz8VQ55Og83eGHVI0GGoPI",
+          "mode": "list",
+          "cachedResultName": "Duplicados",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/14vu3zEZa7tPz8VQ55Og83eGHVI0GGoPI"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3184,
+        320
+      ],
+      "id": "47e98502-4156-4cc8-98f7-8e611c3fa914",
+      "name": "Move file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "list",
+        "useQueryString": true,
+        "queryString": "=mimeType='application/vnd.google-apps.spreadsheet' and name='{{$items(\"Procesar Imagen y Preparar Item1\")[0].json[\"fecha\"].split(\"-\").slice(1).join(\"-\")}}' and '1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl' in parents and trashed=false",
+        "options": {}
+      },
+      "id": "46283a60-67da-4e0b-95fb-6a671c38923d",
+      "name": "Listar Excel Mes",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        5424,
+        -176
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json[\"id\"]}}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "id": "b13fc3ef-35ff-4580-a43d-97b743dde8a6"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e1a6d1cb-d2fe-447a-b8b6-ef58eafc1ebc",
+      "name": "¿Excel existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5680,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "download",
+        "fileId": "={{$json[\"id\"]}}",
+        "options": {}
+      },
+      "id": "4f85f271-b855-44bb-8601-e4b1ce77a50a",
+      "name": "Descargar Excel",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        6880,
+        -576
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "72d0b3a6-d40c-46ee-8cc5-78d7e337cc5d",
+      "name": "Leer Excel",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 1,
+      "position": [
+        7088,
+        -576
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "toFile",
+        "options": {
+          "fileName": "={{$items(\"Procesar Imagen y Preparar Item1\")[0].json[\"fecha\"].substring(0,7)}}.xls",
+          "headerRow": true
+        }
+      },
+      "id": "2739a4f0-9884-4ea3-84aa-4d9c1d81b4c0",
+      "name": "Escribir Excel",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 1,
+      "position": [
+        7520,
+        -576
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "update",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$items(\"¿Excel existe?\")[0].json.id}}",
+          "mode": "id"
+        },
+        "updateFields": {
+          "fileName": "={{$items('Check Carpeta Existente')[0].json.carpeta ? $items('Check Carpeta Existente')[0].json.carpeta.name : $items('Generar Carpeta Mes')[0].json.carpetaMes}}.xlsx",
+          "parentId": "1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl"
+        },
+        "options": {}
+      },
+      "id": "9c27cbf3-4fdb-46ea-ba91-9c224d9b32c0",
+      "name": "Subir Excel",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        7712,
+        -576
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "toFile",
+        "options": {
+          "fileName": "={{$items('Check Carpeta Existente')[0].json.carpeta ? $items('Check Carpeta Existente')[0].json.carpeta.name : $items('Generar Carpeta Mes')[0].json.carpetaMes}}.xlsx",
+          "headerRow": true
+        }
+      },
+      "id": "c175aefa-7f8e-4cf3-8fef-3a60bd591ef9",
+      "name": "Crear Excel Nuevo",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 1,
+      "position": [
+        7088,
+        -400
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "binaryData": true,
+        "name": "={{$items('Check Carpeta Existente')[0].json.carpeta ? $items('Check Carpeta Existente')[0].json.carpeta.name : $items('Generar Carpeta Mes')[0].json.carpetaMes}}.xlsx",
+        "parents": [
+          "1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl"
+        ],
+        "options": {}
+      },
+      "id": "92876309-f56b-450a-88ae-513972cf53a0",
+      "name": "Subir Excel Nuevo",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        7328,
+        -400
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "let item = $items(\"Procesar Imagen y Preparar Item1\")[0].json;\n\nreturn [{\n  json: {\n    excelData: [{\n      tipo_documento: item.tipo_documento,\n      precio_total: item.precio_total,\n      iva_porcentaje: item.iva_porcentaje,\n      iva_importe: item.iva_importe,\n      fecha: item.fecha,\n      empresa_emisora: item.empresa_emisora,\n      identificador_unico: item.identificador_unico,\n      google_drive_id: item.google_drive_id,\n      webContentLink: item.webContentLink,\n      thumbnailLink: item.thumbnailLink\n    }]\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6896,
+        -400
+      ],
+      "id": "688e3608-3947-474b-bfa7-b57e2b11999e",
+      "name": "Code",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1️⃣ Obtener todas las filas existentes\nlet existingRows = [];\n$items(\"Leer Excel\").forEach(item => {\n  if (item.json.excelData) {\n    item.json.excelData.forEach(fila => {\n      existingRows.push({ json: fila });\n    });\n  }\n});\n\n// 2️⃣ Datos del ticket actual\nlet currentTicket = $items(\"Procesar Imagen y Preparar Item1\")[0].json;\n\n// 3️⃣ Crear nueva fila\nlet newRow = {\n  json: {\n    tipo_documento: currentTicket.tipo_documento,\n    precio_total: currentTicket.precio_total,\n    iva_porcentaje: currentTicket.iva_porcentaje,\n    iva_importe: currentTicket.iva_importe,\n    fecha: currentTicket.fecha,\n    empresa_emisora: currentTicket.empresa_emisora,\n    identificador_unico: currentTicket.identificador_unico,\n    google_drive_id: currentTicket.google_drive_id,\n    webContentLink: currentTicket.webContentLink,\n    thumbnailLink: currentTicket.thumbnailLink\n  }\n};\n\n// 4️⃣ Agregar la nueva fila\nexistingRows.push(newRow);\n\n// 5️⃣ Devolver todas las filas\nreturn existingRows;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7296,
+        -576
+      ],
+      "id": "b811b84e-1c3c-4d1c-87ea-dd53a0cd4b68",
+      "name": "Code1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{$items(\"¿Excel existe?\")[0].json.id}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{$json[\"fecha\"].split(\"-\")[1] + \"-\" + $json[\"fecha\"].split(\"-\")[2]}}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        6160,
+        -192
+      ],
+      "id": "342cd36a-b074-40c8-b77f-a22667f9e8bc",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "F8djWcaU21F5LWzx",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "name": "={{$items('Procesar Imagen y Preparar Item1')[0].json['fecha'].substring(0,7)}}",
+        "parents": [
+          "1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl"
+        ],
+        "options": {}
+      },
+      "id": "435e1d14-22cc-4018-8130-98aa682468ad",
+      "name": "Crear Google Sheet",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 1,
+      "position": [
+        7088,
+        -240
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "let item = $items('Procesar Imagen y Preparar Item1')[0].json;\nreturn [{json:{excelData:[{tipo_documento:item.tipo_documento,precio_total:item.precio_total,iva_porcentaje:item.iva_porcentaje,iva_importe:item.iva_importe,fecha:item.fecha,empresa_emisora:item.empresa_emisora,identificador_unico:item.identificador_unico,google_drive_id:item.google_drive_id,webContentLink:item.webContentLink,thumbnailLink:item.thumbnailLink}]}}];"
+      },
+      "id": "ee930ef9-5e6b-4ed9-94f5-f82d0b025791",
+      "name": "Preparar Datos Excel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6880,
+        -240
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{$items('Crear Google Sheet')[0].json.id}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{$items('Procesar Imagen y Preparar Item1')[0].json['fecha'].substring(0,7)}}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4a0df943-6225-4afc-8fb7-2dda419caff0",
+      "name": "Append Row in Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7360,
+        -240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "F8djWcaU21F5LWzx",
+          "name": "Google Sheets account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "let item = $items('Procesar Imagen y Preparar Item1')[0].json;\n\nreturn [{\n  json: {\n    tipo_documento: item.tipo_documento,\n    precio_total: item.precio_total,\n    iva_porcentaje: item.iva_porcentaje,\n    iva_importe: item.iva_importe,\n    fecha: item.fecha,\n    empresa_emisora: item.empresa_emisora,\n    identificador_unico: item.identificador_unico,\n    google_drive_id: item.google_drive_id,\n    webContentLink: item.webContentLink,\n    thumbnailLink: item.thumbnailLink\n  }\n}];\n"
+      },
+      "id": "8140cb34-ea75-4f43-8cb2-c89fbf23d69b",
+      "name": "Preparar Datos Excel1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6832,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{$items('Create spreadsheet')[0].json.spreadsheetId}}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{$items('Procesar Imagen y Preparar Item1')[0].json['fecha'].split('-')[1] + '-' + $items('Procesar Imagen y Preparar Item1')[0].json['fecha'].split('-')[2]}}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "kind",
+              "displayName": "kind",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mimeType",
+              "displayName": "mimeType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "81e635b7-7a6f-4f2d-b0ab-ad6d7425677c",
+      "name": "Append Row in Google Sheet1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        7056,
+        496
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "F8djWcaU21F5LWzx",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "spreadsheet",
+        "title": "={{$items('Procesar Imagen y Preparar Item1')[0].json['fecha'].split('-').slice(1).join('-')}}",
+        "sheetsUi": {
+          "sheetValues": [
+            {
+              "title": "={{$items('Procesar Imagen y Preparar Item1')[0].json['fecha'].split('-')[1] + '-' + $items('Procesar Imagen y Preparar Item1')[0].json['fecha'].split('-')[2]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        6272,
+        496
+      ],
+      "id": "bcc45c29-dc95-4b07-bedb-233a1cb5a823",
+      "name": "Create spreadsheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "F8djWcaU21F5LWzx",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$items('Create spreadsheet')[0].json.spreadsheetId}}\n",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "=1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        6464,
+        496
+      ],
+      "id": "4b3553c6-a6f5-4712-ab31-736cc38cb09c",
+      "name": "Move file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6656,
+        496
+      ],
+      "id": "2963546d-7c80-463b-8032-290a2d854f82",
+      "name": "Wait",
+      "webhookId": "5bfead09-62af-498d-8461-c37e9326658c"
+    },
+    {
+      "parameters": {
+        "jsCode": "let item = $items('Procesar Imagen y Preparar Item1')[0].json;\n\nreturn [{\n  json: {\n    tipo_documento: item.tipo_documento,\n    precio_total: item.precio_total,\n    iva_porcentaje: item.iva_porcentaje,\n    iva_importe: item.iva_importe,\n    fecha: item.fecha,\n    empresa_emisora: item.empresa_emisora,\n    identificador_unico: item.identificador_unico,\n    google_drive_id: item.google_drive_id,\n    webContentLink: item.webContentLink,\n    thumbnailLink: item.thumbnailLink\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5968,
+        -192
+      ],
+      "id": "a72f1895-8f7d-453d-9fed-9dc3e18192fe",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1pp3D4blkVk-F19FIsnT6sSqDCvx3czi8",
+          "mode": "list",
+          "cachedResultName": "Sin clasificar",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1pp3D4blkVk-F19FIsnT6sSqDCvx3czi8"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "a10f6984-59eb-47f0-a32d-eb35732b7c51",
+      "name": "Nuevo Ticket/Factura Subido",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        864,
+        336
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "devotionsim@gmail.com",
+        "subject": "=ERROR AL SUBIR EL TICKET",
+        "message": "=<h2>Error en Workflow</h2>\n<p><strong>Workflow:</strong> {{$workflow.name}}</p>\n<p><strong>Nodo con error:</strong> {{$json[\"execution\"][\"error\"][\"node\"] || $json[\"execution\"][\"lastNodeExecuted\"] || \"Desconocido\"}}</p>\n<p><strong>Mensaje de error:</strong> {{$json[\"execution\"][\"error\"][\"message\"] || \"Sin mensaje\"}}</p>\n<p><strong>Código de error:</strong> {{$json[\"execution\"][\"error\"][\"code\"] || \"N/A\"}}</p>\n<p><strong>SQL (si aplica):</strong><br><pre>{{$json[\"execution\"][\"error\"][\"sql\"] || \"N/A\"}}</pre></p>\n<p><strong>Stack trace:</strong><br><pre>{{$json[\"execution\"][\"error\"][\"stack\"] || \"Sin stack trace\"}}</pre></p>\n\n<h3>Información del archivo procesado:</h3>\n<ul>\n<li><strong>File ID:</strong> {{$json[\"file_id\"] || \"NULL\"}}</li>\n<li><strong>Processed at:</strong> {{$json[\"processed_at\"] || \"NULL\"}}</li>\n<li><strong>Empresa emisora:</strong> {{$json[\"empresa_emisora\"] || \"NULL\"}}</li>\n<li><strong>Fecha documento:</strong> {{$json[\"fecha\"] || \"NULL\"}}</li>\n<li><strong>Precio total:</strong> {{$json[\"precio_total\"] || \"NULL\"}}</li>\n<li><strong>Tipo documento:</strong> {{$json[\"tipo_documento\"] || \"NULL\"}}</li>\n<li><strong>IVA %:</strong> {{$json[\"iva_porcentaje\"] || \"NULL\"}}</li>\n<li><strong>IVA importe:</strong> {{$json[\"iva_importe\"] || \"NULL\"}}</li>\n<li><strong>Identificador único:</strong> {{$json[\"identificador_unico\"] || \"NULL\"}}</li>\n<li><strong>Web Content Link:</strong> <a href=\"{{$json[\"webContentLink\"] || \"#\"}}\">{{$json[\"webContentLink\"] || \"NULL\"}}</a></li>\n<li><strong>Thumbnail Link:</strong> <a href=\"{{$json[\"thumbnailLink\"] || \"#\"}}\">{{$json[\"thumbnailLink\"] || \"NULL\"}}</a></li>\n</ul>\n\n<p><strong>URL de ejecución del workflow:</strong> <a href=\"{{$json[\"execution\"][\"url\"]}}\">{{$json[\"execution\"][\"url\"]}}</a></p>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1184,
+        976
+      ],
+      "id": "5314f3fe-b840-4809-9f0e-27490c7136d5",
+      "name": "Send a message",
+      "webhookId": "961932f6-4090-440d-94f3-214f9853b545",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "L5bKmEdcldl6YpFL",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = $json[\"content\"];\n\n// Intenta parsear la respuesta como JSON\nlet data;\ntry {\n  data = JSON.parse(raw);\n} catch (e) {\n  return [{ json: { error: true, motivo: \"JSON inválido\", raw } }];\n}\n\n// Claves obligatorias\nconst requiredKeys = [\n  \"tipo_documento\",\n  \"precio_total\",\n  \"iva_porcentaje\",\n  \"iva_importe\",\n  \"fecha\",\n  \"empresa_emisora\",\n  \"identificador_unico\"\n];\n\n// Comprobar si **todas** las claves están vacías (forzando string)\nlet allEmpty = requiredKeys.every(k => !(data[k] + \"\").trim());\n\n// Resultado final\nif (allEmpty) {\n  return [{ json: { error: true, motivo: \"Todos los campos vacíos\", raw } }];\n} else {\n  return [{ json: { error: false, ...data } }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        336
+      ],
+      "id": "12c5d22e-3e17-4b96-87a2-c56829664249",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bad0d350-da8e-43e3-91fb-d9d0c5d42946",
+              "leftValue": "={{$json[\"error\"]}}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        544
+      ],
+      "id": "afd80629-5c53-4991-a3cd-d65f91e0dff7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{$node[\"Nuevo Ticket/Factura Subido\"].json[\"id\"]}}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "110tZAeBHFsNgp3bcNAcCSQjKbIWwtQZg",
+          "mode": "list",
+          "cachedResultName": "Error",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/110tZAeBHFsNgp3bcNAcCSQjKbIWwtQZg"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2064,
+        672
+      ],
+      "id": "a564b4b2-d48a-4c88-8d76-90a3c0a966b6",
+      "name": "Move file2",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gZzliRIeYYcoZJ00",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "errorMessage": "Ticket o documento no valido, por favor, sube un ticket con su formato adecuado para que la IA pueda analizarlo"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        672
+      ],
+      "id": "e1cebe99-5067-4cbd-8349-8af6dd5043c9",
+      "name": "Stop and Error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0b202c36-0661-43d9-95ab-d046e017376c",
+              "leftValue": "={{$json[\"error\"] ? true : false}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2816,
+        240
+      ],
+      "id": "64824abf-92df-44a8-9740-84613ff76d48",
+      "name": "If2",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        944,
+        976
+      ],
+      "id": "bf5dbad0-c43b-4824-8ca8-243712a86f8c",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "errorMessage": "DUPLICADO DETECTADO"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        3456,
+        464
+      ],
+      "id": "7f8128ef-12ea-48fc-95cf-27b6794021b9",
+      "name": "Stop and Error1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Check Duplicado": {
+      "main": [
+        []
+      ]
+    },
+    "Es Nuevo?": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Descargar Ticket": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mover a Carpeta Mes": {
+      "main": [
+        [
+          {
+            "node": "Listar Excel Mes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Carpetas Existentes": {
+      "main": [
+        [
+          {
+            "node": "Check Carpeta Existente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Carpeta Existente": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Carpeta Mes": {
+      "main": [
+        [
+          {
+            "node": "Crear Carpeta Mes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Set FolderID1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generar Carpeta Mes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Carpeta Mes": {
+      "main": [
+        [
+          {
+            "node": "Set FolderID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set FolderID": {
+      "main": [
+        [
+          {
+            "node": "Mover a Carpeta Mes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set FolderID1": {
+      "main": [
+        [
+          {
+            "node": "Mover a Carpeta Mes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Datos para DB": {
+      "main": [
+        [
+          {
+            "node": "Guardar en Base de Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Imagen y Preparar Item1": {
+      "main": [
+        [
+          {
+            "node": "Set Datos para DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar Excel Mes": {
+      "main": [
+        [
+          {
+            "node": "¿Excel existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Excel existe?": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create spreadsheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar Excel": {
+      "main": [
+        [
+          {
+            "node": "Leer Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Excel": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escribir Excel": {
+      "main": [
+        [
+          {
+            "node": "Subir Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Excel Nuevo": {
+      "main": [
+        [
+          {
+            "node": "Subir Excel Nuevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en Base de Datos": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Crear Excel Nuevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Escribir Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Append Row in Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos Excel": {
+      "main": [
+        [
+          {
+            "node": "Crear Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos Excel1": {
+      "main": [
+        [
+          {
+            "node": "Append Row in Google Sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create spreadsheet": {
+      "main": [
+        [
+          {
+            "node": "Move file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move file1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos Excel1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nuevo Ticket/Factura Subido": {
+      "main": [
+        [
+          {
+            "node": "Descargar Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Procesar Imagen y Preparar Item1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Move file2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move file2": {
+      "main": [
+        [
+          {
+            "node": "Stop and Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Move file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Listar Carpetas Existentes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move file": {
+      "main": [
+        [
+          {
+            "node": "Stop and Error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "98a88545-c35a-403a-8ce8-5c763a270fd1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "db75a5e0b14ac1c36c72282712d05a7a5549119d6aa68ef1dd2f3f1cb5c0aa80"
+  },
+  "id": "OnCIhOMypQc9jWO3",
+  "tags": []
+}
