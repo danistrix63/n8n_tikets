@@ -136,4 +136,4 @@ Este proyecto ha sido cuidadosamente sanitizado para su publicación:
 El objetivo es demostrar la arquitectura y lógica del sistema sin comprometer ninguna información sensible.
 
 ---
-**Daniel Dans** | [LinkedIn](https://www.linkedin.com/in/danieldans/) | [GitHub](https://github.com/danistrix63)
+**Daniel Dans** | [LinkedIn](www.linkedin.com/in/daniel-dans-cots-864aa53a7) | [GitHub](https://github.com/danistrix63)
