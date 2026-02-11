@@ -133,7 +133,7 @@
         "authentication": "oAuth2",
         "operation": "list",
         "useQueryString": true,
-        "queryString": "mimeType = 'application/vnd.google-apps.folder' and '1yq_eGu-TBZLc0qV3OPI5N_GCnzpPHHb5' in parents and trashed = false",
+        "queryString": "mimeType = 'application/vnd.google-apps.folder' and 'YOUR_DRIVE_ROOT_FOLDER_ID' in parents and trashed = false",
         "options": {}
       },
       "id": "1c672b4e-8839-4fe1-ab4c-33e705697653",
@@ -232,7 +232,7 @@
         "name": "={{$json[\"carpetaMes\"]}}",
         "options": {
           "parents": [
-            "1yq_eGu-TBZLc0qV3OPI5N_GCnzpPHHb5"
+            "YOUR_DRIVE_ROOT_FOLDER_ID"
           ]
         }
       },
@@ -419,7 +419,7 @@
         },
         "folderId": {
           "__rl": true,
-          "value": "14vu3zEZa7tPz8VQ55Og83eGHVI0GGoPI",
+          "value": "YOUR_DUPLICADOS_FOLDER_ID",
           "mode": "list",
           "cachedResultName": "Duplicados",
           "cachedResultUrl": "https://drive.google.com/drive/folders/14vu3zEZa7tPz8VQ55Og83eGHVI0GGoPI"
@@ -446,7 +446,7 @@
         "authentication": "oAuth2",
         "operation": "list",
         "useQueryString": true,
-        "queryString": "=mimeType='application/vnd.google-apps.spreadsheet' and name='{{$items(\"Procesar Imagen y Preparar Item1\")[0].json[\"fecha\"].split(\"-\").slice(1).join(\"-\")}}' and '1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl' in parents and trashed=false",
+        "queryString": "=mimeType='application/vnd.google-apps.spreadsheet' and name='{{$items(\"Procesar Imagen y Preparar Item1\")[0].json[\"fecha\"].split(\"-\").slice(1).join(\"-\")}}' and 'YOUR_EXCEL_FOLDER_ID' in parents and trashed=false",
         "options": {}
       },
       "id": "46283a60-67da-4e0b-95fb-6a671c38923d",
@@ -564,7 +564,7 @@
         },
         "updateFields": {
           "fileName": "={{$items('Check Carpeta Existente')[0].json.carpeta ? $items('Check Carpeta Existente')[0].json.carpeta.name : $items('Generar Carpeta Mes')[0].json.carpetaMes}}.xlsx",
-          "parentId": "1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl"
+          "parentId": "YOUR_EXCEL_FOLDER_ID"
         },
         "options": {}
       },
@@ -608,7 +608,7 @@
         "binaryData": true,
         "name": "={{$items('Check Carpeta Existente')[0].json.carpeta ? $items('Check Carpeta Existente')[0].json.carpeta.name : $items('Generar Carpeta Mes')[0].json.carpetaMes}}.xlsx",
         "parents": [
-          "1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl"
+          "YOUR_EXCEL_FOLDER_ID"
         ],
         "options": {}
       },
@@ -699,7 +699,7 @@
         "authentication": "oAuth2",
         "name": "={{$items('Procesar Imagen y Preparar Item1')[0].json['fecha'].substring(0,7)}}",
         "parents": [
-          "1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl"
+          "YOUR_EXCEL_FOLDER_ID"
         ],
         "options": {}
       },
@@ -907,7 +907,7 @@
         },
         "folderId": {
           "__rl": true,
-          "value": "=1Nl9PWl9X3h8MrOH_YwqRNWX_pg6kPMsl",
+          "value": "=YOUR_EXCEL_FOLDER_ID",
           "mode": "id"
         }
       },
@@ -938,7 +938,7 @@
       ],
       "id": "2963546d-7c80-463b-8032-290a2d854f82",
       "name": "Wait",
-      "webhookId": "5bfead09-62af-498d-8461-c37e9326658c"
+      "webhookId": "YOUR_WEBHOOK_ID"
     },
     {
       "parameters": {
@@ -965,10 +965,10 @@
         "triggerOn": "specificFolder",
         "folderToWatch": {
           "__rl": true,
-          "value": "1pp3D4blkVk-F19FIsnT6sSqDCvx3czi8",
+          "value": "YOUR_SIN_CLASIFICAR_FOLDER_ID",
           "mode": "list",
           "cachedResultName": "Sin clasificar",
-          "cachedResultUrl": "https://drive.google.com/drive/folders/1pp3D4blkVk-F19FIsnT6sSqDCvx3czi8"
+          "cachedResultUrl": "https://drive.google.com/drive/folders/YOUR_SIN_CLASIFICAR_FOLDER_ID"
         },
         "event": "fileCreated",
         "options": {}
@@ -990,7 +990,7 @@
     },
     {
       "parameters": {
-        "sendTo": "devotionsim@gmail.com",
+        "sendTo": "your-email@example.com",
         "subject": "=ERROR AL SUBIR EL TICKET",
         "message": "=<h2>Error en Workflow</h2>\n<p><strong>Workflow:</strong> {{$workflow.name}}</p>\n<p><strong>Nodo con error:</strong> {{$json[\"execution\"][\"error\"][\"node\"] || $json[\"execution\"][\"lastNodeExecuted\"] || \"Desconocido\"}}</p>\n<p><strong>Mensaje de error:</strong> {{$json[\"execution\"][\"error\"][\"message\"] || \"Sin mensaje\"}}</p>\n<p><strong>Código de error:</strong> {{$json[\"execution\"][\"error\"][\"code\"] || \"N/A\"}}</p>\n<p><strong>SQL (si aplica):</strong><br><pre>{{$json[\"execution\"][\"error\"][\"sql\"] || \"N/A\"}}</pre></p>\n<p><strong>Stack trace:</strong><br><pre>{{$json[\"execution\"][\"error\"][\"stack\"] || \"Sin stack trace\"}}</pre></p>\n\n<h3>Información del archivo procesado:</h3>\n<ul>\n<li><strong>File ID:</strong> {{$json[\"file_id\"] || \"NULL\"}}</li>\n<li><strong>Processed at:</strong> {{$json[\"processed_at\"] || \"NULL\"}}</li>\n<li><strong>Empresa emisora:</strong> {{$json[\"empresa_emisora\"] || \"NULL\"}}</li>\n<li><strong>Fecha documento:</strong> {{$json[\"fecha\"] || \"NULL\"}}</li>\n<li><strong>Precio total:</strong> {{$json[\"precio_total\"] || \"NULL\"}}</li>\n<li><strong>Tipo documento:</strong> {{$json[\"tipo_documento\"] || \"NULL\"}}</li>\n<li><strong>IVA %:</strong> {{$json[\"iva_porcentaje\"] || \"NULL\"}}</li>\n<li><strong>IVA importe:</strong> {{$json[\"iva_importe\"] || \"NULL\"}}</li>\n<li><strong>Identificador único:</strong> {{$json[\"identificador_unico\"] || \"NULL\"}}</li>\n<li><strong>Web Content Link:</strong> <a href=\"{{$json[\"webContentLink\"] || \"#\"}}\">{{$json[\"webContentLink\"] || \"NULL\"}}</a></li>\n<li><strong>Thumbnail Link:</strong> <a href=\"{{$json[\"thumbnailLink\"] || \"#\"}}\">{{$json[\"thumbnailLink\"] || \"NULL\"}}</a></li>\n</ul>\n\n<p><strong>URL de ejecución del workflow:</strong> <a href=\"{{$json[\"execution\"][\"url\"]}}\">{{$json[\"execution\"][\"url\"]}}</a></p>\n",
         "options": {}
@@ -1003,7 +1003,7 @@
       ],
       "id": "5314f3fe-b840-4809-9f0e-27490c7136d5",
       "name": "Send a message",
-      "webhookId": "961932f6-4090-440d-94f3-214f9853b545",
+      "webhookId": "YOUR_GMAIL_WEBHOOK_ID",
       "credentials": {
         "gmailOAuth2": {
           "id": "L5bKmEdcldl6YpFL",
@@ -1074,10 +1074,10 @@
         },
         "folderId": {
           "__rl": true,
-          "value": "110tZAeBHFsNgp3bcNAcCSQjKbIWwtQZg",
+          "value": "YOUR_ERROR_FOLDER_ID",
           "mode": "list",
           "cachedResultName": "Error",
-          "cachedResultUrl": "https://drive.google.com/drive/folders/110tZAeBHFsNgp3bcNAcCSQjKbIWwtQZg"
+          "cachedResultUrl": "https://drive.google.com/drive/folders/YOUR_ERROR_FOLDER_ID"
         }
       },
       "type": "n8n-nodes-base.googleDrive",

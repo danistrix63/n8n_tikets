@@ -1,0 +1,16 @@
+# Backups
+*.tar.gz
+*.zip
+*.sql
+backup_*/
+
+# Environment variables
+.env
+.env.local
+
+# Local files
+local-files/
+n8n_data_local/
+node_modules/
+.DS_Store
+Thumbs.db
