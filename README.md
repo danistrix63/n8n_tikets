@@ -1,53 +1,46 @@
-# 🧾 Analizador de Tickets Inteligente con n8n (Template)
+# Analizador de Tickets con n8n
 
-Este repositorio contiene un flujo de trabajo de automatización avanzado construido con **n8n**. El sistema está diseñado para procesar imágenes de tickets y facturas de manera profesional, integrando Inteligencia Artificial para la extracción de datos y una infraestructura robusta para el almacenamiento y organización.
+Este proyecto consiste en un flujo de trabajo automatizado desarrollado en n8n para la gestión de tickets y facturas. El sistema procesa imágenes de forma automática, extrae la información relevante mediante inteligencia artificial y organiza tanto los datos como los archivos en diferentes plataformas.
 
-> [!IMPORTANT]
-> **Nota sobre el estado del proyecto:** 
-> Este repositorio sirve como una **plantilla profesional** y una demostración de arquitectura. El archivo JSON incluido ha sido **sanitizado para proteger la privacidad**. Los IDs de carpetas de Google Drive, webhooks y credenciales reales han sido reemplazados por placeholders genéricos (ej: `YOUR_FOLDER_ID`, `YOUR_WEBHOOK_ID`). 
->
-> **Para que el flujo sea funcional** en tu propia instancia de n8n, deberás:
-> - Re-configurar los conectores con tus propios IDs de Google Drive
-> - Actualizar las credenciales de MySQL, OpenAI y Gmail
-> - Reemplazar los placeholders con tus valores reales
+Este repositorio sirve como plantilla y demostración de arquitectura. El archivo JSON incluido ha sido editado para eliminar datos sensibles, por lo que deberás configurar tus propias credenciales y IDs de carpetas para que sea funcional.
 
-## 🚀 Características Principales
+## Funcionamiento y Características
 
-*   **Extracción de Datos con IA (Visión)**: Utiliza modelos como GPT-4o o Gemini 1.5 Pro para "leer" la imagen y extraer:
-    *   Precio Total (limpiando símbolos de moneda)
-    *   Desglose de IVA (múltiples tipos soportados)
-    *   Nombre de la empresa (normalizado a mayúsculas)
-    *   Fecha de emisión (conversión automática de formatos)
-*   **Gestión de Datos Multicapa**:
-    1.  **MySQL**: Registro histórico para auditoría y búsqueda rápida.
-    2.  **Google Sheets**: Reporte dinámico para contabilidad y gestión visual.
-    3.  **Google Drive**: Almacenamiento organizado jerárquicamente.
-*   **Lógica de Negocio Avanzada**:
-    *   **Detección de Duplicados**: Antes de guardar, el sistema genera un hash único y consulta la base de datos para evitar registros repetidos.
-    *   **Clasificación Dinámica**: Crea automáticamente carpetas por `Año-Mes` (ej: `2025-02`) basándose en la fecha del ticket, no en la fecha de subida.
-    *   **Control de Errores**: Sistema de captura de errores que mueve archivos problemáticos a una carpeta de "Error" y notifica vía Gmail con el stack trace técnico.
+### Extracción de datos
+El sistema utiliza modelos de visión (como GPT-4o o Gemini) para leer las imágenes y extraer los datos clave sin necesidad de plantillas fijas.
+- Precio total: Limpieza automática de símbolos de moneda.
+- Desglose de IVA: Soporte para múltiples tipos impositivos.
+- Datos del emisor: Normalización del nombre de la empresa.
+- Fecha: Conversión automática al formato estándar.
 
-## 🏗️ Infraestructura y Despliegue
+### Gestión de la información
+Los datos extraídos se envían a varios destinos de forma simultánea:
+- MySQL: Registro histórico para consultas y auditoría.
+- Google Sheets: Reporte actualizado para contabilidad y gestión visual.
+- Google Drive: Almacenamiento organizado de los archivos originales.
 
-Este sistema está diseñado para ejecutarse en un entorno de producción real:
+### Lógica interna
+- Detección de duplicados: El sistema genera un identificador único por ticket para evitar registros repetidos en la base de datos.
+- Clasificación dinámica: Los archivos se mueven automáticamente a carpetas organizadas por año y mes basándose en la fecha del ticket.
+- Gestión de errores: Si un archivo no se puede procesar, se mueve a una carpeta específica y se envía una notificación por correo con los detalles técnicos.
 
-*   **Entorno**: VPS (Servidor Privado Virtual).
-*   **Containerización**: Desplegado mediante **Docker** y Docker Compose para asegurar que el entorno sea idéntico en desarrollo y producción.
-*   **Seguridad**: Configurado detrás de un proxy inverso con certificados **Let's Encrypt (SSL)**, permitiendo Webhooks seguros (HTTPS).
-*   **Backups**: El diseño original incluye copias de seguridad automáticas del volumen de datos de n8n y la base de datos MySQL.
+## Infraestructura y Despliegue
+
+El sistema está preparado para un entorno de producción real con las siguientes características:
+
+- Entorno: VPS (Servidor Privado Virtual).
+- Despliegue: Configurado con Docker y Docker Compose para asegurar la consistencia del entorno.
+- Seguridad: Uso de proxy inverso con certificados SSL de Let's Encrypt para habilitar webhooks seguros por HTTPS.
+- Copias de seguridad: El diseño contempla backups automáticos de la base de datos y la configuración de n8n.
 
 ### Stack Tecnológico de Producción
-*   **VPS**: Servidor Linux alojado en la nube
-*   **Docker**: Contenedor n8n (`n8nio/n8n:latest`)
-*   **Dominio**: Dominio personalizado con HTTPS
-*   **SSL/TLS**: Certificados Let's Encrypt gestionados automáticamente
-*   **Protocolo**: HTTPS con webhooks seguros
-*   **Zona Horaria**: Europe/Madrid
-*   **Volúmenes Persistentes**:
-    *   `./n8n_data_local` → Datos de n8n (workflows, credenciales)
-    *   `./local-files` → Archivos procesados
+- Servidor: Linux en la nube (VPS).
+- Docker: n8nio/n8n:latest.
+- Dominio: Dominio propio con HTTPS activo.
+- SSL: Gestión automática de certificados con Let's Encrypt.
+- Zona Horaria: Europe/Madrid.
 
-### Configuración Docker (Ejemplo)
+### Configuración de Docker (Ejemplo)
 
 ```yaml
 version: '3'
@@ -60,36 +53,30 @@ services:
     ports:
       - "5678:5678"
     environment:
-      - N8N_HOST=your-domain.com
+      - N8N_HOST=tu-dominio.com
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://your-domain.com/
+      - WEBHOOK_URL=https://tu-dominio.com/
       - GENERIC_TIMEZONE=Europe/Madrid
     volumes:
       - ./n8n_data_local:/home/node/.n8n
       - ./local-files:/files
 ```
 
-> [!NOTE]
-> Por razones de seguridad y privacidad, los archivos de backup reales (`.tar.gz`) que contienen datos de producción, certificados SSL y configuraciones privadas **no se incluyen en este repositorio público**. El `.gitignore` está configurado para prevenir la subida accidental de estos archivos sensibles.
+## Herramientas Utilizadas
+- n8n: Orquestación del flujo de trabajo.
+- MySQL: Base de datos relacional.
+- Google Drive API: Gestión y almacenamiento de archivos.
+- Google Sheets API: Generación de reportes.
+- OpenAI API / Gemini: Procesamiento de imágenes con visión artificial.
+- Gmail API: Notificaciones de sistema.
 
-## 🛠️ Tecnologías del Flujo
+## Configuración del Entorno
 
-*   [n8n](https://n8n.io/) - Plataforma de automatización de flujos de trabajo
-*   **MySQL** - Base de datos relacional
-*   **Google Drive API** - Gestión de archivos
-*   **Google Sheets API** - Reportes dinámicos
-*   **OpenAI API / Gemini** - Procesamiento de imágenes con visión artificial
-*   **Gmail API** - Notificaciones de errores
+### 1. Importación
+Carga el archivo Tikets (1).json en tu instancia de n8n. Asegúrate de revisar los nodos que contienen placeholders y actualizar las credenciales de Google, MySQL, OpenAI y Gmail.
 
-## ⚙️ Configuración y Uso
-
-### 1. Importación del Workflow
-1.  Importa el archivo `Tikets (1).json` en tu instancia de n8n.
-2.  Verifica los nodos marcados con placeholders como `YOUR_FOLDER_ID` o `YOUR_WEBHOOK_ID`.
-3.  Actualiza todas las credenciales (Google Drive, MySQL, OpenAI, Gmail).
-
-### 2. Base de Datos MySQL
-Crea la tabla necesaria en tu base de datos:
+### 2. Base de Datos
+Es necesario crear la tabla processed_files en MySQL con la estructura que se detalla a continuación:
 
 ```sql
 CREATE TABLE processed_files (
@@ -108,32 +95,16 @@ CREATE TABLE processed_files (
 );
 ```
 
-### 3. Variables de Entorno
+### 3. Variables de entorno
+Utiliza el archivo .env.example como referencia para configurar los accesos a la base de datos y las claves necesarias para las APIs.
 
-Consulta el archivo `.env.example` para ver todas las variables necesarias. Las principales son:
+## Contenido del Repositorio
+- Tikets (1).json: Flujo de n8n (plantilla).
+- DEMO.md: Explicación visual del proceso.
+- .env.example: Guía para las variables de configuración.
+- README.md: Documentación principal.
 
-*   `DB_HOST`, `DB_USER`, `DB_PASS`, `DB_NAME` - Conexión MySQL
-*   `OPENAI_API_KEY` - Clave de API para procesamiento IA
-*   IDs de carpetas de Google Drive (configurados directamente en los nodos)
+## Notas sobre privacidad
+El flujo ha sido anonimizado para su publicación. Se han eliminado IDs de carpetas, webhooks, correos electrónicos y credenciales reales. Los archivos de backup con datos de producción no están incluidos en el repositorio para proteger la seguridad del sistema original.
 
-## 📦 Contenido del Repositorio
-
-*   `Tikets (1).json`: Workflow de n8n (Template sanitizado)
-*   `DEMO.md`: Guía visual y diagrama de flujo con Mermaid
-*   `.env.example`: Guía de variables de entorno necesarias
-*   `.gitignore`: Configuración para evitar la subida accidental de datos sensibles
-*   `README.md`: Este archivo
-
-## 🔒 Privacidad y Seguridad
-
-Este proyecto ha sido cuidadosamente sanitizado para su publicación:
-- ✅ Todos los IDs de carpetas de Google Drive reemplazados por placeholders
-- ✅ Webhooks IDs anonimizados
-- ✅ Emails corporativos eliminados
-- ✅ Credenciales y tokens excluidos mediante `.gitignore`
-- ✅ Backups de producción excluidos del repositorio
-
-El objetivo es demostrar la arquitectura y lógica del sistema sin comprometer ninguna información sensible.
-
----
-**Daniel Dans** | [LinkedIn](https://www.linkedin.com/in/danieldans/) | [GitHub](https://github.com/danistrix63)
+Daniel Dans | [LinkedIn](https://www.linkedin.com/in/danieldans/) | [GitHub](https://github.com/danistrix63)
